@@ -41,7 +41,7 @@ func ParseNetstat(output string, mode string,
 			continue
 		}
 		base := 1
-		// sometimes Address is omitted
+		// sometimes Address is ommitted
 		if len(values) < columns {
 			base = 0
 		}

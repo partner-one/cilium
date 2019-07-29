@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -62,9 +63,12 @@ func init() {
 	lastCPUPercent.Unlock()
 }
 
-// Counts returns the number of physical or logical cores in the system
 func Counts(logical bool) (int, error) {
 	return CountsWithContext(context.Background(), logical)
+}
+
+func CountsWithContext(ctx context.Context, logical bool) (int, error) {
+	return runtime.NumCPU(), nil
 }
 
 func (c TimesStat) String() string {
