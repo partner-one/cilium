@@ -77,13 +77,16 @@ func (d *Daemon) policyUpdateTrigger(reasons []string) {
 // This may be called in a variety of situations: after policy changes, changes
 // in agent configuration, changes in endpoint labels, and change of security
 // identities.
-func (d *Daemon) TriggerPolicyUpdates(force bool, reason string) {
+func (d *Daemon) TriggerPolicyUpdates(force bool, reason string) (newRevision uint64) {
 	if force {
 		log.Debugf("Artificially increasing policy revision to enforce policy recalculation")
-		d.policy.BumpRevision()
+		newRevision = d.policy.BumpRevision()
+	} else {
+		newRevision = d.policy.GetRevision()
 	}
 
 	d.policyTrigger.TriggerWithReason(reason)
+	return newRevision
 }
 
 // UpdateIdentities informs the policy package of all identity changes

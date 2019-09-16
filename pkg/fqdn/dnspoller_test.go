@@ -142,8 +142,8 @@ func (ds *FQDNTestSuite) TestNameManagerSelectorHandling(c *C) {
 					return lookupDNSNames(ipLookups, lookups, dnsNames), nil
 				},
 
-				UpdateSelectors: func(map[api.FQDNSelector][]net.IP, []api.FQDNSelector) error {
-					return nil
+				UpdateSelectors: func(map[api.FQDNSelector][]net.IP, []api.FQDNSelector) (uint64, error) {
+					return 0, nil
 				},
 			}
 

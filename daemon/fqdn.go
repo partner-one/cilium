@@ -93,7 +93,7 @@ func identitiesForFQDNSelectorIPs(selectorsWithIPsToUpdate map[policyApi.FQDNSel
 	return selectorIdentitySliceMapping, nil
 }
 
-func (d *Daemon) updateSelectorCacheFQDNs(selectors map[policyApi.FQDNSelector][]*identity.Identity, selectorsWithoutIPs []policyApi.FQDNSelector) {
+func (d *Daemon) updateSelectorCacheFQDNs(selectors map[policyApi.FQDNSelector][]*identity.Identity, selectorsWithoutIPs []policyApi.FQDNSelector) (newRevision uint64) {
 	// Update mapping of selector to set of IPs in selector cache.
 	for selector, identitySlice := range selectors {
 		log.WithFields(logrus.Fields{
@@ -121,9 +121,9 @@ func (d *Daemon) updateSelectorCacheFQDNs(selectors map[policyApi.FQDNSelector][
 	// There may be nothing to update - in this case, we exit and do not need
 	// to trigger policy updates for all endpoints.
 	if len(selectors) == 0 && len(selectorsWithoutIPs) == 0 {
-		return
+		return 0
 	}
-	d.TriggerPolicyUpdates(false, "updated identities for FQDNs")
+	return d.TriggerPolicyUpdates(false, "updated identities for FQDNs")
 }
 
 // bootstrapFQDN initializes the toFQDNs related subsystems: DNSPoller,
@@ -188,7 +188,8 @@ func (d *Daemon) bootstrapFQDN(restoredEndpoints *endpointRestoreState, preCache
 			metrics.FQDNGarbageCollectorCleanedTotal.Add(float64(len(namesToClean)))
 			log.WithField(logfields.Controller, dnsGCJobName).Infof(
 				"FQDN garbage collector work deleted %d name entries", len(namesToClean))
-			return d.dnsNameManager.ForceGenerateDNS(namesToClean)
+			_, err := d.dnsNameManager.ForceGenerateDNS(namesToClean)
+			return err
 		},
 	})
 
@@ -246,17 +247,16 @@ func (d *Daemon) bootstrapFQDN(restoredEndpoints *endpointRestoreState, preCache
 // updateSelectors propagates the mapping of FQDNSelector to identity, as well
 // as the set of FQDNSelectors which have no IPs which correspond to them
 // (usually due to TTL expiry), down to policy layer managed by this daemon.
-func (d *Daemon) updateSelectors(selectorWithIPsToUpdate map[policyApi.FQDNSelector][]net.IP, selectorsWithoutIPs []policyApi.FQDNSelector) error {
+func (d *Daemon) updateSelectors(selectorWithIPsToUpdate map[policyApi.FQDNSelector][]net.IP, selectorsWithoutIPs []policyApi.FQDNSelector) (newRevision uint64, err error) {
 	// Convert set of selectors with IPs to update to set of selectors
 	// with identities corresponding to said IPs.
 	selectorsIdentities, err := identitiesForFQDNSelectorIPs(selectorWithIPsToUpdate)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// Update mapping in selector cache with new identities.
-	d.updateSelectorCacheFQDNs(selectorsIdentities, selectorsWithoutIPs)
-	return nil
+	return d.updateSelectorCacheFQDNs(selectorsIdentities, selectorsWithoutIPs), nil
 }
 
 // pollerResponseNotify handles update events for updates from the poller. It
@@ -473,7 +473,7 @@ func (d *Daemon) notifyOnDNSMsg(lookupTime time.Time, ep *endpoint.Endpoint, epI
 			"qname": qname,
 			"ips":   responseIPs,
 		}).Debug("Updating DNS name in cache from response to to query")
-		err = d.dnsNameManager.UpdateGenerateDNS(lookupTime, map[string]*fqdn.DNSIPRecords{
+		newRevision, err := d.dnsNameManager.UpdateGenerateDNS(lookupTime, map[string]*fqdn.DNSIPRecords{
 			qname: {
 				IPs: responseIPs,
 				TTL: int(TTL),
