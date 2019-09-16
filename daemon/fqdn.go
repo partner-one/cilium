@@ -23,6 +23,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cilium/cilium/api/v1/models"
@@ -93,7 +94,7 @@ func identitiesForFQDNSelectorIPs(selectorsWithIPsToUpdate map[policyApi.FQDNSel
 	return selectorIdentitySliceMapping, nil
 }
 
-func (d *Daemon) updateSelectorCacheFQDNs(selectors map[policyApi.FQDNSelector][]*identity.Identity, selectorsWithoutIPs []policyApi.FQDNSelector) (newRevision uint64) {
+func (d *Daemon) updateSelectorCacheFQDNs(selectors map[policyApi.FQDNSelector][]*identity.Identity, selectorsWithoutIPs []policyApi.FQDNSelector) (wg *sync.WaitGroup) {
 	// Update mapping of selector to set of IPs in selector cache.
 	for selector, identitySlice := range selectors {
 		log.WithFields(logrus.Fields{
@@ -121,9 +122,10 @@ func (d *Daemon) updateSelectorCacheFQDNs(selectors map[policyApi.FQDNSelector][
 	// There may be nothing to update - in this case, we exit and do not need
 	// to trigger policy updates for all endpoints.
 	if len(selectors) == 0 && len(selectorsWithoutIPs) == 0 {
-		return 0
+		return &sync.WaitGroup{}
 	}
-	return d.TriggerPolicyUpdates(false, "updated identities for FQDNs")
+	wg = d.endpointManager.UpdatePolicyMaps()
+	return wg
 }
 
 // bootstrapFQDN initializes the toFQDNs related subsystems: DNSPoller,
@@ -247,12 +249,12 @@ func (d *Daemon) bootstrapFQDN(restoredEndpoints *endpointRestoreState, preCache
 // updateSelectors propagates the mapping of FQDNSelector to identity, as well
 // as the set of FQDNSelectors which have no IPs which correspond to them
 // (usually due to TTL expiry), down to policy layer managed by this daemon.
-func (d *Daemon) updateSelectors(selectorWithIPsToUpdate map[policyApi.FQDNSelector][]net.IP, selectorsWithoutIPs []policyApi.FQDNSelector) (newRevision uint64, err error) {
+func (d *Daemon) updateSelectors(selectorWithIPsToUpdate map[policyApi.FQDNSelector][]net.IP, selectorsWithoutIPs []policyApi.FQDNSelector) (wg *sync.WaitGroup, err error) {
 	// Convert set of selectors with IPs to update to set of selectors
 	// with identities corresponding to said IPs.
 	selectorsIdentities, err := identitiesForFQDNSelectorIPs(selectorWithIPsToUpdate)
 	if err != nil {
-		return 0, err
+		return &sync.WaitGroup{}, err
 	}
 
 	// Update mapping in selector cache with new identities.
@@ -473,7 +475,7 @@ func (d *Daemon) notifyOnDNSMsg(lookupTime time.Time, ep *endpoint.Endpoint, epI
 			"qname": qname,
 			"ips":   responseIPs,
 		}).Debug("Updating DNS name in cache from response to to query")
-		newRevision, err := d.dnsNameManager.UpdateGenerateDNS(lookupTime, map[string]*fqdn.DNSIPRecords{
+		wg, err := d.dnsNameManager.UpdateGenerateDNS(lookupTime, map[string]*fqdn.DNSIPRecords{
 			qname: {
 				IPs: responseIPs,
 				TTL: int(TTL),
@@ -481,18 +483,27 @@ func (d *Daemon) notifyOnDNSMsg(lookupTime time.Time, ep *endpoint.Endpoint, epI
 		if err != nil {
 			log.WithError(err).Error("error updating internal DNS cache for rule generation")
 		}
+
+		done := make(chan struct{})
+		go func(wg *sync.WaitGroup, done chan struct{}) {
+			wg.Wait()
+			done <- struct{}{}
+		}(wg, done)
+
 		updateCtx, updateCancel := context.WithTimeout(context.TODO(), option.Config.FQDNProxyResponseMaxDelay)
 		defer updateCancel()
 		updateStart := time.Now()
-		err = d.endpointManager.WaitForEndpointsAtPolicyRev(updateCtx, newRevision)
-		if err != nil {
-			log.WithError(err).Error("waiting for endpoints to reach revision")
+
+		select {
+		case <-updateCtx.Done():
+			log.Error("reached maximum delay for waiting for FQDNs to be plumbed to endpoints; returning response")
+		case <-done:
 		}
+
 		log.WithFields(logrus.Fields{
-			logfields.Duration:       time.Since(updateStart),
-			logfields.EndpointID:     ep.GetID(),
-			logfields.PolicyRevision: newRevision,
-			"qname":                  qname,
+			logfields.Duration:   time.Since(updateStart),
+			logfields.EndpointID: ep.GetID(),
+			"qname":              qname,
 		}).Debug("Waited for endpoints to regenerate due to a DNS response")
 		endMetric()
 	}

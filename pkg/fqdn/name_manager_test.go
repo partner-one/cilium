@@ -18,6 +18,7 @@ package fqdn
 
 import (
 	"net"
+	"sync"
 	"time"
 
 	"github.com/cilium/cilium/pkg/policy/api"
@@ -49,11 +50,11 @@ func (ds *FQDNTestSuite) TestNameManagerCIDRGeneration(c *C) {
 				return lookupFail(c, dnsNames)
 			},
 
-			UpdateSelectors: func(selectorIPMapping map[api.FQDNSelector][]net.IP, selectorsWithoutIPs []api.FQDNSelector) (uint64, error) {
+			UpdateSelectors: func(selectorIPMapping map[api.FQDNSelector][]net.IP, selectorsWithoutIPs []api.FQDNSelector) (*sync.WaitGroup, error) {
 				for k, v := range selectorIPMapping {
 					selIPMap[k] = v
 				}
-				return 0, nil
+				return &sync.WaitGroup{}, nil
 			},
 		})
 	)
@@ -99,11 +100,11 @@ func (ds *FQDNTestSuite) TestNameManagerMultiIPUpdate(c *C) {
 				return lookupFail(c, dnsNames)
 			},
 
-			UpdateSelectors: func(selectorIPMapping map[api.FQDNSelector][]net.IP, selectorsWithoutIPs []api.FQDNSelector) (uint64, error) {
+			UpdateSelectors: func(selectorIPMapping map[api.FQDNSelector][]net.IP, selectorsWithoutIPs []api.FQDNSelector) (*sync.WaitGroup, error) {
 				for k, v := range selectorIPMapping {
 					selIPMap[k] = v
 				}
-				return 0, nil
+				return &sync.WaitGroup{}, nil
 			},
 		})
 	)
