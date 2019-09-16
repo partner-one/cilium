@@ -564,9 +564,9 @@ func (p *Repository) TranslateRules(translator Translator) (*TranslationResult, 
 }
 
 // BumpRevision allows forcing policy regeneration
-func (p *Repository) BumpRevision() {
+func (p *Repository) BumpRevision() uint64 {
 	metrics.PolicyRevision.Inc()
-	atomic.AddUint64(&p.revision, 1)
+	return atomic.AddUint64(&p.revision, 1)
 }
 
 // GetRulesList returns the current policy
