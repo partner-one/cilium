@@ -481,6 +481,19 @@ func (d *Daemon) notifyOnDNSMsg(lookupTime time.Time, ep *endpoint.Endpoint, epI
 		if err != nil {
 			log.WithError(err).Error("error updating internal DNS cache for rule generation")
 		}
+		updateCtx, updateCancel := context.WithTimeout(context.TODO(), option.Config.FQDNProxyResponseMaxDelay)
+		defer updateCancel()
+		updateStart := time.Now()
+		err = d.endpointManager.WaitForEndpointsAtPolicyRev(updateCtx, newRevision)
+		if err != nil {
+			log.WithError(err).Error("waiting for endpoints to reach revision")
+		}
+		log.WithFields(logrus.Fields{
+			logfields.Duration:       time.Since(updateStart),
+			logfields.EndpointID:     ep.GetID(),
+			logfields.PolicyRevision: newRevision,
+			"qname":                  qname,
+		}).Debug("Waited for endpoints to regenerate due to a DNS response")
 		endMetric()
 	}
 
