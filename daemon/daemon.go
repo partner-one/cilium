@@ -346,7 +346,7 @@ func NewDaemon(dp datapath.Datapath, iptablesManager rulesManager) (*Daemon, *en
 		iptablesManager:   iptablesManager,
 	}
 
-	d.identityAllocator = cache.NewIdentityAllocatorManager(&d)
+	d.identityAllocator = cache.NewCachingIdentityAllocator(&d)
 	d.policy = policy.NewPolicyRepository(d.identityAllocator)
 
 	// Propagate identity allocator down to packages which themselves do not
