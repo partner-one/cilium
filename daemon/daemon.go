@@ -521,6 +521,8 @@ func NewDaemon(dp datapath.Datapath, iptablesManager rulesManager) (*Daemon, *en
 		log.WithError(err).Error("Unable to restore previous BPF templates")
 	}
 
+	// This IPCache event listener forwards events to cilium monitor
+	ipcache.IPIdentityCache.AddListener(&d)
 	// Start watcher for endpoint IP --> identity mappings in key-value store.
 	// this needs to be done *after* init() for the daemon in that function,
 	// we populate the IPCache with the host's IP(s).
