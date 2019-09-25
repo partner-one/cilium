@@ -733,6 +733,37 @@ func init() {
         }
       }
     },
+    "/ip/cache/": {
+      "get": {
+        "description": "Retrieves a list of IP cache entries, optionally filtered on the key by\na CIDR IP range\n",
+        "tags": [
+          "policy"
+        ],
+        "summary": "Lists IP cache entries",
+        "parameters": [
+          {
+            "$ref": "#/parameters/cidr"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/IPCache"
+            }
+          },
+          "400": {
+            "description": "Invalid request (error parsing parameters)",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "404": {
+            "description": "No IP cache entries with provided parameters found"
+          }
+        }
+      }
+    },
     "/ipam": {
       "post": {
         "tags": [
@@ -2190,6 +2221,62 @@ func init() {
           }
         },
         "status": {
+          "type": "string"
+        }
+      }
+    },
+    "IPCache": {
+      "description": "IP cache definition and content",
+      "type": "object",
+      "properties": {
+        "cache": {
+          "description": "Contents of cache",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/IPCacheEntry"
+          }
+        }
+      }
+    },
+    "IPCacheEntry": {
+      "description": "IP cache entry\"",
+      "type": "object",
+      "required": [
+        "cidr",
+        "identity"
+      ],
+      "properties": {
+        "cidr": {
+          "description": "Key of the entry in the form of a CIDR range",
+          "type": "string"
+        },
+        "encryptKey": {
+          "description": "The context ID for the encryption session",
+          "type": "integer"
+        },
+        "hostIP": {
+          "description": "IP address of the host",
+          "type": "string"
+        },
+        "identity": {
+          "description": "Numerical identity assigned to the IP",
+          "type": "integer"
+        },
+        "k8sMetadata": {
+          "$ref": "#/definitions/IPCacheEntryK8sMetadata"
+        }
+      }
+    },
+    "IPCacheEntryK8sMetadata": {
+      "description": "Kubernetes Metadata of an IP cache entry",
+      "type": "object",
+      "properties": {
+        "namespace": {
+          "description": "Namespace of the Kubernetes pod of the IP",
+          "type": "string"
+        },
+        "podName": {
+          "description": "Name of the Kubernetes pod of the IP",
           "type": "string"
         }
       }
@@ -3806,6 +3893,40 @@ func init() {
         }
       }
     },
+    "/ip/cache/": {
+      "get": {
+        "description": "Retrieves a list of IP cache entries, optionally filtered on the key by\na CIDR IP range\n",
+        "tags": [
+          "policy"
+        ],
+        "summary": "Lists IP cache entries",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "A CIDR range of IPs",
+            "name": "cidr",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/IPCache"
+            }
+          },
+          "400": {
+            "description": "Invalid request (error parsing parameters)",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "404": {
+            "description": "No IP cache entries with provided parameters found"
+          }
+        }
+      }
+    },
     "/ipam": {
       "post": {
         "tags": [
@@ -5320,6 +5441,62 @@ func init() {
           }
         },
         "status": {
+          "type": "string"
+        }
+      }
+    },
+    "IPCache": {
+      "description": "IP cache definition and content",
+      "type": "object",
+      "properties": {
+        "cache": {
+          "description": "Contents of cache",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/IPCacheEntry"
+          }
+        }
+      }
+    },
+    "IPCacheEntry": {
+      "description": "IP cache entry\"",
+      "type": "object",
+      "required": [
+        "cidr",
+        "identity"
+      ],
+      "properties": {
+        "cidr": {
+          "description": "Key of the entry in the form of a CIDR range",
+          "type": "string"
+        },
+        "encryptKey": {
+          "description": "The context ID for the encryption session",
+          "type": "integer"
+        },
+        "hostIP": {
+          "description": "IP address of the host",
+          "type": "string"
+        },
+        "identity": {
+          "description": "Numerical identity assigned to the IP",
+          "type": "integer"
+        },
+        "k8sMetadata": {
+          "$ref": "#/definitions/IPCacheEntryK8sMetadata"
+        }
+      }
+    },
+    "IPCacheEntryK8sMetadata": {
+      "description": "Kubernetes Metadata of an IP cache entry",
+      "type": "object",
+      "properties": {
+        "namespace": {
+          "description": "Namespace of the Kubernetes pod of the IP",
+          "type": "string"
+        },
+        "podName": {
+          "description": "Name of the Kubernetes pod of the IP",
           "type": "string"
         }
       }

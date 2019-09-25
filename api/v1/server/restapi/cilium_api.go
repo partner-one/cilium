@@ -99,6 +99,9 @@ func NewCiliumAPI(spec *loads.Document) *CiliumAPI {
 		DaemonGetHealthzHandler: daemon.GetHealthzHandlerFunc(func(params daemon.GetHealthzParams) middleware.Responder {
 			return middleware.NotImplemented("operation DaemonGetHealthz has not yet been implemented")
 		}),
+		PolicyGetIPCacheHandler: policy.GetIPCacheHandlerFunc(func(params policy.GetIPCacheParams) middleware.Responder {
+			return middleware.NotImplemented("operation PolicyGetIPCache has not yet been implemented")
+		}),
 		PolicyGetIdentityHandler: policy.GetIdentityHandlerFunc(func(params policy.GetIdentityParams) middleware.Responder {
 			return middleware.NotImplemented("operation PolicyGetIdentity has not yet been implemented")
 		}),
@@ -232,6 +235,8 @@ type CiliumAPI struct {
 	PolicyGetFqdnNamesHandler policy.GetFqdnNamesHandler
 	// DaemonGetHealthzHandler sets the operation handler for the get healthz operation
 	DaemonGetHealthzHandler daemon.GetHealthzHandler
+	// PolicyGetIPCacheHandler sets the operation handler for the get IP cache operation
+	PolicyGetIPCacheHandler policy.GetIPCacheHandler
 	// PolicyGetIdentityHandler sets the operation handler for the get identity operation
 	PolicyGetIdentityHandler policy.GetIdentityHandler
 	// PolicyGetIdentityEndpointsHandler sets the operation handler for the get identity endpoints operation
@@ -409,6 +414,10 @@ func (o *CiliumAPI) Validate() error {
 
 	if o.DaemonGetHealthzHandler == nil {
 		unregistered = append(unregistered, "daemon.GetHealthzHandler")
+	}
+
+	if o.PolicyGetIPCacheHandler == nil {
+		unregistered = append(unregistered, "policy.GetIPCacheHandler")
 	}
 
 	if o.PolicyGetIdentityHandler == nil {
@@ -686,6 +695,11 @@ func (o *CiliumAPI) initHandlerCache() {
 		o.handlers["GET"] = make(map[string]http.Handler)
 	}
 	o.handlers["GET"]["/healthz"] = daemon.NewGetHealthz(o.context, o.DaemonGetHealthzHandler)
+
+	if o.handlers["GET"] == nil {
+		o.handlers["GET"] = make(map[string]http.Handler)
+	}
+	o.handlers["GET"]["/ip/cache"] = policy.NewGetIPCache(o.context, o.PolicyGetIPCacheHandler)
 
 	if o.handlers["GET"] == nil {
 		o.handlers["GET"] = make(map[string]http.Handler)

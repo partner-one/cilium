@@ -182,6 +182,38 @@ func (a *Client) GetFqdnNames(params *GetFqdnNamesParams) (*GetFqdnNamesOK, erro
 }
 
 /*
+GetIPCache lists IP cache entries
+
+Retrieves a list of IP cache entries, optionally filtered on the key by
+a CIDR IP range
+
+*/
+func (a *Client) GetIPCache(params *GetIPCacheParams) (*GetIPCacheOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetIPCacheParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "GetIPCache",
+		Method:             "GET",
+		PathPattern:        "/ip/cache/",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &GetIPCacheReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*GetIPCacheOK), nil
+
+}
+
+/*
 GetIdentity retrieves a list of identities that have metadata matching the provided parameters
 
 Retrieves a list of identities that have metadata matching the provided parameters, or all identities if no parameters are provided.
